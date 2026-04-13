@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network Port Scan Report — {{ host }}</title>
+  <style>
+    /* ── Reset & base ────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      padding: 32px 24px;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      border-bottom: 2px solid #2d3748;
+      padding-bottom: 20px;
+      margin-bottom: 28px;
+    }
+    header h1 { font-size: 1.8rem; color: #90cdf4; }
+    header .meta { font-size: 0.85rem; color: #718096; margin-top: 6px; }
+
+    /* ── Summary cards ───────────────────────────────────────────── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .card {
+      background: #1a202c;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    .card .label { font-size: 0.75rem; color: #718096; text-transform: uppercase; letter-spacing: .05em; }
+    .card .value { font-size: 2rem; font-weight: 700; margin-top: 4px; }
+    .card.critical .value { color: #fc8181; }
+    .card.high     .value { color: #f6ad55; }
+    .card.medium   .value { color: #f6e05e; }
+    .card.low      .value { color: #68d391; }
+    .card.total    .value { color: #90cdf4; }
+
+    /* ── Section titles ──────────────────────────────────────────── */
+    h2 {
+      font-size: 1.3rem;
+      color: #90cdf4;
+      margin: 28px 0 12px;
+      padding-left: 8px;
+      border-left: 4px solid #4299e1;
+    }
+    h3 {
+      font-size: 1rem;
+      color: #a0aec0;
+      margin: 20px 0 8px;
+    }
+
+    /* ── Tables ──────────────────────────────────────────────────── */
+    .tbl-wrap { overflow-x: auto; margin-bottom: 20px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    thead tr { background: #2d3748; }
+    th {
+      padding: 10px 14px;
+      text-align: left;
+      color: #a0aec0;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid #2d3748; }
+    tbody tr:hover { background: #1a202c; }
+    td { padding: 9px 14px; vertical-align: top; word-break: break-word; }
+    td code {
+      background: #2d3748;
+      border-radius: 3px;
+      padding: 2px 5px;
+      font-size: 0.8rem;
+      color: #bee3f8;
+    }
+
+    /* ── Severity badges ─────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+    .badge-CRITICAL { background: #742a2a; color: #fc8181; border: 1px solid #fc8181; }
+    .badge-HIGH     { background: #7b341e; color: #f6ad55; border: 1px solid #f6ad55; }
+    .badge-MEDIUM   { background: #744210; color: #f6e05e; border: 1px solid #f6e05e; }
+    .badge-LOW      { background: #1c4532; color: #68d391; border: 1px solid #68d391; }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid #2d3748;
+      font-size: 0.75rem;
+      color: #4a5568;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ── Header ───────────────────────────────────────────────────── -->
+  <header>
+    <h1>🔍 Network Port Scan Report</h1>
+    <div class="meta">
+      Target: <strong>{{ host }}</strong> &nbsp;|&nbsp;
+      Scanned: <strong>{{ scan_time }}</strong> &nbsp;|&nbsp;
+      Tool: Network Port Scanner v1.0
+    </div>
+  </header>
+
+  <!-- ── Summary cards ────────────────────────────────────────────── -->
+  <div class="summary-grid">
+    <div class="card total">
+      <div class="label">Findings</div>
+      <div class="value">{{ summary.total }}</div>
+    </div>
+    <div class="card critical">
+      <div class="label">Critical</div>
+      <div class="value">{{ summary.critical }}</div>
+    </div>
+    <div class="card high">
+      <div class="label">High</div>
+      <div class="value">{{ summary.high }}</div>
+    </div>
+    <div class="card medium">
+      <div class="label">Medium</div>
+      <div class="value">{{ summary.medium }}</div>
+    </div>
+    <div class="card low">
+      <div class="label">Low</div>
+      <div class="value">{{ summary.low }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Max Score</div>
+      <div class="value" style="color:#e2e8f0">{{ summary.max_score }}<span style="font-size:1rem;color:#718096">/10</span></div>
+    </div>
+  </div>
+
+  <!-- ── Per-host sections ─────────────────────────────────────────── -->
+  {% for host_report in hosts %}
+  <h2>Host: {{ host_report.host }}</h2>
+
+  <!-- Open ports -->
+  <h3>Open TCP Ports</h3>
+  {% if host_report.tcp_results %}
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Port</th><th>State</th><th>Banner</th></tr>
+      </thead>
+      <tbody>
+        {% for item in host_report.tcp_results %}
+        {% if item.state == 'open' %}
+        <tr>
+          <td>{{ item.port }}</td>
+          <td>{{ item.state }}</td>
+          <td>{% if item.banner %}<code>{{ item.banner | e }}</code>{% else %}—{% endif %}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p style="color:#718096">No open TCP ports found.</p>
+  {% endif %}
+
+  <!-- UDP results -->
+  {% if host_report.udp_results %}
+  <h3>UDP Results</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Port</th><th>State</th></tr>
+      </thead>
+      <tbody>
+        {% for item in host_report.udp_results %}
+        <tr>
+          <td>{{ item.port }}</td>
+          <td>{{ item.state }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Risk findings -->
+  <h3>⚠ Insecure Protocol Findings</h3>
+  {% if host_report.risk_results %}
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Port</th>
+          <th>Protocol</th>
+          <th>Severity</th>
+          <th>Score</th>
+          <th>Risk Reason</th>
+          <th>Recommendation</th>
+          <th>Banner</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in host_report.risk_results %}
+        <tr>
+          <td>{{ f.port }}</td>
+          <td><strong>{{ f.name }}</strong></td>
+          <td><span class="badge badge-{{ f.severity }}">{{ f.severity }}</span></td>
+          <td>{{ f.risk }}/10</td>
+          <td>{{ f.reason }}</td>
+          <td>{{ f.replace }}</td>
+          <td>{% if f.banner %}<code>{{ f.banner | e }}</code>{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p style="color:#68d391">✔ No insecure protocols detected on this host.</p>
+  {% endif %}
+
+  {% endfor %}
+
+  <footer>
+    Generated by Network Port Scanner + Insecure Protocol Detector &nbsp;|&nbsp;
+    For authorized security testing only &nbsp;|&nbsp; {{ scan_time }}
+  </footer>
+
+</div>
+</body>
+</html>

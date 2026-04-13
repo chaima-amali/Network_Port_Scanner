@@ -1,1 +1,1 @@
-"""Scanner package for TCP, SYN, UDP, protocol, and risk helpers."""
+# scanner package

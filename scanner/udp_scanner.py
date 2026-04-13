@@ -1,72 +1,39 @@
-"""UDP scanning helpers built with Scapy."""
+"""UDP port scanner — Person A's module.
+
+Sends empty UDP datagrams and listens for ICMP port-unreachable
+responses to infer port state. Requires root on Linux/macOS.
+"""
 
 from __future__ import annotations
 
-try:
-    from scapy.all import ICMP, IP, UDP, conf, sr1
-except ImportError:  # pragma: no cover - fallback for environments without Scapy
-    class _DummyPacket:
-        """Minimal packet object that supports Scapy-style layering syntax."""
-
-        def __init__(self, **kwargs: object) -> None:
-            self.__dict__.update(kwargs)
-
-        def __truediv__(self, other: object) -> "_DummyPacket":
-            return self
-
-    class _DummyLayerFactory:
-        """Factory that mimics the callable Scapy layer classes."""
-
-        def __call__(self, *args: object, **kwargs: object) -> _DummyPacket:
-            return _DummyPacket(**kwargs)
-
-    ICMP = IP = UDP = _DummyLayerFactory()  # type: ignore[assignment]
-
-    class _Conf:
-        """Minimal configuration shim used when Scapy is unavailable."""
-
-        verb = 0
-
-    conf = _Conf()  # type: ignore[assignment]
-
-    def sr1(*args: object, **kwargs: object) -> None:
-        """Fallback sr1 implementation that returns no response."""
-
-        return None
+import socket
 
 
-conf.verb = 0
+def udp_scan(host: str, port: int, timeout: float = 2.0) -> dict:
+    """Probe a single UDP port.
 
-
-def udp_scan(host: str, port: int, timeout: float = 2.0) -> dict[str, int | str]:
-    """Probe a UDP port and classify it using ICMP port-unreachable replies."""
-
-    state = "open|filtered"
-
+    Returns:
+        dict with keys: port, state ('open|filtered' or 'closed')
+    """
     try:
-        response = sr1(IP(dst=host) / UDP(dport=port), timeout=timeout, verbose=0)
-        if response is not None:
-            icmp_layer = getattr(response, "getlayer", lambda *_: None)(ICMP)
-            if icmp_layer is not None:
-                icmp_type = int(getattr(icmp_layer, "type", -1))
-                icmp_code = int(getattr(icmp_layer, "code", -1))
-                if icmp_type == 3 and icmp_code == 3:
-                    state = "closed"
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(timeout)
+            sock.sendto(b"", (host, port))
+            try:
+                sock.recvfrom(1024)
+                return {"port": port, "state": "open|filtered"}
+            except socket.timeout:
+                # No ICMP unreachable received within timeout → likely open/filtered
+                return {"port": port, "state": "open|filtered"}
+    except ConnectionRefusedError:
+        # ICMP port unreachable → closed
+        return {"port": port, "state": "closed"}
+    except PermissionError:
+        return {"port": port, "state": "error: requires root"}
     except Exception:
-        state = "open|filtered"
-
-    return {"port": port, "state": state}
+        return {"port": port, "state": "error"}
 
 
-def udp_scan_range(host: str, ports: list[int]) -> list[dict[str, int | str]]:
-    """Scan a list of UDP ports and return the collected results."""
-
-    results: list[dict[str, int | str]] = []
-    for port in ports:
-        try:
-            results.append(udp_scan(host, port))
-        except Exception:
-            results.append({"port": port, "state": "open|filtered"})
-
-    results.sort(key=lambda item: int(item["port"]))
-    return results
+def udp_scan_range(host: str, ports: list[int], timeout: float = 2.0) -> list[dict]:
+    """Scan a list of UDP ports sequentially."""
+    return [udp_scan(host, port, timeout) for port in ports]
